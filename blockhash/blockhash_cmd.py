@@ -7,13 +7,15 @@
 # Distributed under an MIT license, please see LICENSE in the top dir.
 
 import argparse
-from itertools import imap
+from typing import Iterable
+
+from PIL import Image
 
 from .blockhash import ImageBlockhashCalculator
 
 
 def parse_image_paths(image_paths: Iterable[str]):
-    return imap(Image.open, image_paths)
+    return map(Image.open, image_paths)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
