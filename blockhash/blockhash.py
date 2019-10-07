@@ -7,14 +7,16 @@
 # Distributed under an MIT license, please see LICENSE in the top dir.
 
 import math
-import argparse
-import PIL.Image as Image
+from PIL import Image
+from typing import Tuple, Union, Iterable
+
 
 def median(data):
     data = sorted(data)
     length = len(data)
     if length % 2 == 0:
         return (data[length // 2 - 1] + data[length // 2]) / 2.0
+        
     return data[length // 2]
 
 def total_value_rgba(im, data, x, y):
@@ -152,6 +154,73 @@ def blockhash(im, bits):
     translate_blocks_to_bits(result, block_width * block_height)
     return bits_to_hexhash(result)
 
+
+class ImageBlockhashCalculator(object):
+
+    def __init__(self, quick: bool = False, bits: int = 16, size: Tuple[int, int] = None, interpolation: int = 1, debug: bool = True):
+        """
+        quick: Use quick hashing method. Default: False
+        interpolation: Interpolation method: 1 - nearest neightbor, 2 - bilinear, 3 - bicubic, 4 - antialias. Default: 1'
+        """
+        self.blockhash_method = None
+        self.set_blockhash_method(quick)
+
+        self.bits = bits
+        self.size = self.__verify_size_param(size)
+        self.interpolation = self.__parse_interpolation(interpolation)
+        self.debug = debug
+
+    def __verify_size_param(self, size: Union[Tuple[int, int], None]):
+        if size is None:
+            return None
+
+        if len(size) == 2:
+            return (int(size[0]), int(size[1]))
+
+    def __parse_interpolation(self, interpolation: int):
+        if interpolation == 1:
+            return Image.NEAREST
+        elif interpolation == 2:
+            return Image.BILINEAR
+        elif interpolation == 3:
+            return Image.BICUBIC
+        elif interpolation == 4:
+            return Image.ANTIALIAS
+        else:
+            raise ValueError("interpolation must be an int between 1 and 4.")
+
+    def set_blockhash_method(self, quick: bool):
+        self.blockhash_method = blockhash_even if quick else blockhash
+
+
+    def compute_blockhash(self, images: Iterable[Image]):
+        for im in images:
+            # convert indexed/grayscale images to RGB
+            if im.mode == '1' or im.mode == 'L' or im.mode == 'P':
+                im = im.convert('RGB')
+            elif im.mode == 'LA':
+                im = im.convert('RGBA')
+
+            if self.size is not None:
+                im = im.resize(self.size, self.interpolation)
+
+            image_blockhash = self.blockhash_method(im, self.bits)
+
+            if self.debug:
+                bin_hash = '{:0{width}b}'.format(int(image_blockhash, 16), width=self.bits ** 2)
+                mapping = [bin_hash[i:i+self.bits] for i in range(0, len(bin_hash), self.bits)]
+                print("")
+                print("\n".join(mapping))
+                print("")
+
+            yield image_blockhash
+
+
+def parse_image_paths(image_paths: Iterable[str]):
+    return map(Image.open, image_paths)
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
@@ -169,41 +238,11 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    if args.interpolation == 1:
-        interpolation = Image.NEAREST
-    elif args.interpolation == 2:
-        interpolation = Image.BILINEAR
-    elif args.interpolation == 3:
-        interpolation = Image.BICUBIC
-    elif args.interpolation == 4:
-        interpolation = Image.ANTIALIAS
 
-    if args.quick:
-        method = blockhash_even
-    else:
-        method = blockhash
+    blockhasher = ImageBlockhashCalculator(args.quick, args.bits, args.size, args.interpolation, args.debug)
+    images = parse_image_paths(args.filenames)
+    hashes = blockhasher.compute_blockhash(images)
+    for blockhash, filename in zip(hashes, args.filenames):
+        print(f"{blockhash}  {filename}")
+   
 
-    for fn in args.filenames:
-        im = Image.open(fn)
-
-        # convert indexed/grayscale images to RGB
-        if im.mode == '1' or im.mode == 'L' or im.mode == 'P':
-            im = im.convert('RGB')
-        elif im.mode == 'LA':
-            im = im.convert('RGBA')
-
-        if args.size:
-            size = args.size.split('x')
-            size = (int(size[0]), int(size[1]))
-            im = im.resize(size, interpolation)
-
-        hash = method(im, args.bits)
-
-        print('{hash}  {fn}'.format(fn=fn, hash=hash))
-
-        if args.debug:
-            bin_hash = '{:0{width}b}'.format(int(hash, 16), width=args.bits ** 2)
-            map = [bin_hash[i:i+args.bits] for i in range(0, len(bin_hash), args.bits)]
-            print("")
-            print("\n".join(map))
-            print("")

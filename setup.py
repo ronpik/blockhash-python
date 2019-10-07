@@ -3,12 +3,13 @@
 from distutils.core import setup
 
 setup(
-    name='blockhash',
+    name='imgblocks',
     version='0.1',
     description='Perceptual image hash calculation tool',
     author='Commons Machinery',
     author_email='dev@commonsmachinery.se',
     license='MIT',
-    scripts=['blockhash.py'],
+    scripts=['blockhash/blockhash_cmd.py'],
+    packages=['blockhash'],
     requires=['pillow'],
 )
