@@ -157,7 +157,7 @@ def blockhash(im, bits):
 
 class ImageBlockhashCalculator(object):
 
-    def __init__(self, quick: bool = False, bits: int = 16, size: Tuple[int, int] = None, interpolation: int = 1, debug: bool = True):
+    def __init__(self, quick: bool = False, bits: int = 16, size: Tuple[int, int] = None, interpolation: int = 1, debug: bool = False):
         """
         quick: Use quick hashing method. Default: False
         interpolation: Interpolation method: 1 - nearest neightbor, 2 - bilinear, 3 - bicubic, 4 - antialias. Default: 1'
@@ -193,7 +193,7 @@ class ImageBlockhashCalculator(object):
         self.blockhash_method = blockhash_even if quick else blockhash
 
 
-    def compute_blockhash(self, images: Iterable[Image]):
+    def compute_blockhash(self, images: Iterable[Image.Image]):
         for im in images:
             # convert indexed/grayscale images to RGB
             if im.mode == '1' or im.mode == 'L' or im.mode == 'P':
